@@ -2,34 +2,25 @@ import openai  # <-- same import, but the usage below changes
 import os
 import subprocess
 import json
-import tiktoken  # For token counting
-import time
+import Utils.Token as TokenUtils
+import Utils.EnvironmentManagement as EnvUtils
 import sys
 
 #################################
 # 1. HELPER: Load API Key
 #################################
-def load_api_key():
-    """
-    Loads the OpenAI API key from a file named 'api_key.txt' by default.
-    If the file is not found, exits with an error message.
-    """
-    try:
-        with open("api_key.txt", "r", encoding="utf-8") as f:
-            return f.read().strip()
-    except FileNotFoundError:
-        print("Error: 'api_key.txt' not found. Create this file and add your API key.")
-        sys.exit(1)
 
 # Set your OpenAI API key from file
-openai.api_key = load_api_key()
+openai.api_key = EnvUtils.load_api_key()
 
 #################################
-# 2. FUNCTION DEFINITIONS
+# 2. GLOBALS & FUNCTION DEFINITIONS
 #################################
 
-# Global note variable
-notes = ""
+notes = ""  # Global note variable
+
+# Track which projects already have virtual envs
+created_envs = set()
 
 def write_note(note):
     """
@@ -39,44 +30,15 @@ def write_note(note):
     notes = note
     return "Note written."
 
-def create_or_edit_file(project_name, file_path, content):
-    """
-    Creates a new file if it doesn't exist, or edits it if it already exists.
-    """
-    full_path = os.path.join(project_name, file_path)
-    try:
-        # Ensure the directory exists
-        os.makedirs(os.path.dirname(full_path), exist_ok=True)
-
-        # Check if the file already exists
-        if os.path.isfile(full_path):
-            action = "edited"
-        else:
-            action = "created"
-
-        with open(full_path, 'w', encoding="utf-8") as f:
-            f.write(content)
-
-        return f"File '{file_path}' {action} successfully in project '{project_name}'."
-    except Exception as e:
-        return f"Error: {str(e)}"
-
-def read_file(full_path):
-    """
-    Reads and returns the content of a file.
-    """
-    try:
-        with open(full_path, 'r', encoding="utf-8") as f:
-            content = f.read()
-        return f"Content of '{full_path}':\n{content}"
-    except Exception as e:
-        return f"Error: {str(e)}"
-
 def create_virtual_env(env_name="venv"):
     """
     Creates a Python virtual environment with the given name.
     """
     try:
+        # If the folder already exists, skip creation
+        if os.path.isdir(env_name):
+            return f"Virtual environment '{env_name}' already exists. Skipping creation."
+
         subprocess.check_call([sys.executable, "-m", "venv", env_name])
         return f"Virtual environment '{env_name}' created successfully."
     except Exception as e:
@@ -115,6 +77,57 @@ def run_python_file(env_name, file_path):
     except Exception as e:
         return f"Error: {str(e)}"
 
+def create_or_edit_file(project_name, file_path, content):
+    """
+    Creates a new file if it doesn't exist, or edits it if it already exists.
+    Automatically creates a virtual environment for the project if one doesn't exist,
+    then runs the file if it ends with .py.
+    """
+    global created_envs
+
+    # Ensure a venv is created for this project
+    if project_name not in created_envs:
+        create_venv_result = create_virtual_env(project_name)
+        print(create_venv_result)  # For logging
+        created_envs.add(project_name)
+
+    full_path = os.path.join(project_name, file_path)
+    try:
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+
+        # Check if the file already exists
+        if os.path.isfile(full_path):
+            action = "edited"
+        else:
+            action = "created"
+
+        with open(full_path, 'w', encoding="utf-8") as f:
+            f.write(content)
+
+        msg = f"File '{file_path}' {action} successfully in project '{project_name}'."
+        print(msg)
+
+        # If it's a python file, run it
+        if file_path.endswith(".py"):
+            run_result = run_python_file(project_name, full_path)
+            msg += f"\n---\nAttempted to run '{file_path}' in '{project_name}':\n{run_result}"
+
+        return msg
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+def read_file(full_path):
+    """
+    Reads and returns the content of a file.
+    """
+    try:
+        with open(full_path, 'r', encoding="utf-8") as f:
+            content = f.read()
+        return f"Content of '{full_path}':\n{content}"
+    except Exception as e:
+        return f"Error: {str(e)}"
+
 #################################
 # 3. OPENAI FUNCTION SCHEMA
 #################################
@@ -122,7 +135,7 @@ def run_python_file(env_name, file_path):
 functions = [
     {
         "name": "create_or_edit_file",
-        "description": "Create or edit a file within the project folder.",
+        "description": "Create or edit a file within the project folder. Automatically ensures a virtual environment exists and runs the file if it ends in '.py'.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -157,7 +170,7 @@ functions = [
     },
     {
         "name": "create_virtual_env",
-        "description": "Create a Python virtual environment in the current directory.",
+        "description": "Create a Python virtual environment in the current directory. If it already exists, do nothing.",
         "parameters": {
             "type": "object",
             "properties": {
@@ -193,50 +206,24 @@ functions = [
 ]
 
 #################################
-# 4. TOKEN COUNTING & PRUNING
-#################################
-
-def num_tokens_from_messages(messages):
-    """Returns the number of tokens used by a list of messages."""
-    encoding = tiktoken.get_encoding("cl100k_base")
-    num_tokens = 0
-    for message in messages:
-        # Base tokens per message
-        num_tokens += 4
-        num_tokens += len(encoding.encode(message.get("role", "")))
-        if message.get("content"):
-            num_tokens += len(encoding.encode(message["content"]))
-        if message.get("name"):
-            num_tokens += len(encoding.encode(message["name"]))
-        if message.get("function_call"):
-            num_tokens += len(encoding.encode(str(message["function_call"])))
-    num_tokens += 2  # Every reply is primed with <im_start>assistant
-    return num_tokens
-
-def prune_messages(messages, max_tokens, model="gpt-4"):
-    """
-    Prune the messages to keep total tokens under max_tokens.
-    This removes older user/assistant messages but keeps the system prompt and the most recent interactions.
-    """
-    while num_tokens_from_messages(messages) > max_tokens:
-        # Check if there are messages to remove (excluding system prompt)
-        if len(messages) > 2:
-            messages.pop(1)  # Remove the second message (after system prompt)
-        else:
-            break
-    return messages
-
-#################################
 # 5. SYSTEM PROMPT
 #################################
 
 def get_system_prompt():
+    """
+    Updated system prompt to ensure the AI first creates a virtual environment
+    for every project, then creates/edits files, and runs the Python file after success.
+    """
     return {
         "role": "system",
         "content": (
             "Develop end-to-end software solutions autonomously using Python. "
-            "Focus exclusively on creating/editing project files, creating virtual environments, installing Python packages, "
-            "and running Python scripts. Avoid OS-level or admin-level operations. "
+            "Whenever you create or edit a file for a project, you must first ensure "
+            "a virtual environment for that project is created. Then you create/edit "
+            "the file, and if the file is a Python file, you automatically run it. "
+            "Focus exclusively on creating/editing project files, creating virtual environments, "
+            "installing Python packages, and running Python scripts. Avoid OS-level or "
+            "admin-level operations. "
             "Always read a file before editing it if you suspect it has content.\n"
             f"Note: {notes}"
         )
@@ -253,6 +240,17 @@ def main():
     messages = []
     max_token_limit = 5000  # Adjust as needed
     model = "o3-mini"
+    max_retries = 3  # how many times we retry if there's an error
+
+    # A dictionary to map function calls to actual Python functions
+    function_map = {
+        "create_or_edit_file": create_or_edit_file,
+        "write_note": write_note,
+        "read_file": read_file,
+        "create_virtual_env": create_virtual_env,
+        "install_package": install_package,
+        "run_python_file": run_python_file
+    }
 
     while True:
         user_input = input("You: ")
@@ -263,71 +261,74 @@ def main():
         # Append user message
         messages.append({"role": "user", "content": user_input})
         # Prune if needed
-        messages = prune_messages(messages, max_token_limit, model=model)
+        messages = TokenUtils.prune_messages(messages, max_token_limit, model=model)
 
-        # Insert system prompt before the user's message
+        # Insert system prompt before the user's message (just before the last index)
         system_prompt_index = len(messages) - 1
         messages.insert(system_prompt_index, get_system_prompt())
 
-        # ------------------------------------------------------------------
-        # Below is the new call for openai>=1.0.0
-        # ------------------------------------------------------------------
-        response = openai.chat.completions.create(  # <-- changed for 1.0.0+
-            model=model,
-            messages=messages,
-            functions=functions,
-            function_call="auto"
-        )
+        # We'll allow multiple retries if we keep hitting errors
+        for attempt in range(max_retries):
+            # 1. Call the model
+            response = openai.chat.completions.create(
+                model=model,
+                messages=messages,
+                functions=functions,
+                function_call="auto"
+            )
 
-        # The response is a pydantic model, so you can access top-level fields directly:
-        # e.g. response.choices, response.usage, etc.
-        # Each choice has a "message" attribute.
-        assistant_msg = response.choices[0].message  # This is also a pydantic model
-        # assistant_msg.content -> raw content from the assistant
-        # assistant_msg.function_call -> function call from the assistant (if any)
+            # 2. Remove the inserted system prompt (so we don’t keep duplicating it)
+            messages.pop(system_prompt_index)
 
-        # Remove the inserted system prompt from messages
-        messages.pop(system_prompt_index)
+            # 3. Extract the assistant message
+            assistant_msg = response.choices[0].message
+            assistant_dict = assistant_msg.model_dump()
+            # Save it to the conversation
+            messages.append(assistant_dict)
 
-        # Convert the assistant message to a dictionary if you prefer dictionary logic
-        assistant_dict = assistant_msg.model_dump()  # <-- changed for 1.0.0+
-        messages.append(assistant_dict)
+            # 4. Prune if needed
+            messages = TokenUtils.prune_messages(messages, max_token_limit, model=model)
 
-        # Prune again if needed
-        messages = prune_messages(messages, max_token_limit, model=model)
+            # 5. Check if there's a function call
+            if assistant_msg.function_call:
+                func_name = assistant_msg.function_call.name
+                # function_call.arguments is a JSON string, so parse it
+                func_args = json.loads(assistant_msg.function_call.arguments)
 
-        # Check if there's a function call
-        if assistant_msg.function_call:
-            func_name = assistant_msg.function_call.name
-            # function_call.arguments is a JSON string, so parse it
-            func_args = json.loads(assistant_msg.function_call.arguments)
+                if func_name in function_map:
+                    try:
+                        result = function_map[func_name](**func_args)
+                    except TypeError as e:
+                        result = f"Error: missing or invalid arguments. {str(e)}"
+                    except Exception as e:
+                        result = f"Error during function execution: {str(e)}"
+                else:
+                    result = f"Error: Function '{func_name}' not implemented."
 
-            # Map function call
-            function_map = {
-                "create_or_edit_file": create_or_edit_file,
-                "write_note": write_note,
-                "read_file": read_file,
-                "create_virtual_env": create_virtual_env,
-                "install_package": install_package,
-                "run_python_file": run_python_file
-            }
-
-            if func_name in function_map:
-                try:
-                    result = function_map[func_name](**func_args)
-                except TypeError as e:
-                    result = f"Error: missing or invalid arguments. {str(e)}"
-                except Exception as e:
-                    result = f"Error during function execution: {str(e)}"
+                # 6. If the result is an error, feed it back as an assistant message so the model can fix it
+                if result.lower().startswith("error"):
+                    error_message = {
+                        "role": "assistant",
+                        "content": f"I encountered an error:\n{result}\nWhat should I do next?"
+                    }
+                    messages.append(error_message)
+                    # Insert system prompt again before we call next time
+                    system_prompt_index = len(messages) - 1
+                    messages.insert(system_prompt_index, get_system_prompt())
+                    # Let the loop continue, model tries to fix the error
+                else:
+                    # No error; just print the result and break out of retry loop
+                    print(f"Assistant (function result): {result}")
+                    break
             else:
-                result = f"Function '{func_name}' not implemented."
+                # 7. Otherwise, the model responded with plain text
+                print(f"Assistant: {assistant_msg.content}")
+                break  # No function call to handle, so break
 
-            # Pass the result back to the conversation
-            messages.append({"role": "assistant", "content": result})
-            print(f"Assistant (function result): {result}")
         else:
-            # Otherwise, just print the assistant's response
-            print(f"Assistant: {assistant_msg.content}")
+            # If we exit the for-loop via exhaustion (no break),
+            # we might want to say we ran out of retries.
+            print("Reached max retries without resolving errors. Stopping here.")
 
 if __name__ == "__main__":
     main()
