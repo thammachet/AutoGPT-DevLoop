@@ -18,3 +18,5 @@ __pycache__/
 
 # Ignore macOS files
 .DS_Store
+
+.chroma_db

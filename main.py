@@ -1,16 +1,18 @@
-import openai  # <-- same import, but the usage below changes
+import openai
 import os
 import subprocess
 import json
+import sys
+
 import Utils.Token as TokenUtils
 import Utils.EnvironmentManagement as EnvUtils
-import sys
+
+from knowledge_base import update_knowledge_base, retrieve_relevant_code
 
 #################################
 # 1. HELPER: Load API Key
 #################################
 
-# Set your OpenAI API key from file
 openai.api_key = EnvUtils.load_api_key()
 
 #################################
@@ -18,8 +20,11 @@ openai.api_key = EnvUtils.load_api_key()
 #################################
 
 notes = ""  # Global note variable
-
-# Track which projects already have virtual envs
+project_blueprint = (
+    "High-level blueprint:\n"
+    "- Summaries of major modules, classes, design patterns.\n"
+    "This blueprint will be updated as the project evolves.\n"
+)
 created_envs = set()
 
 def write_note(note):
@@ -30,24 +35,30 @@ def write_note(note):
     notes = note
     return "Note written."
 
+def append_to_blueprint(update_text):
+    """
+    Append new info to the global project blueprint.
+    """
+    global project_blueprint
+    project_blueprint += f"\nUPDATE: {update_text}\n"
+    return "Project blueprint updated."
+
 def create_virtual_env(env_name="venv"):
-    """
-    Creates a Python virtual environment with the given name.
-    """
+    if env_name == "env":
+        return "Error: 'env' is reserved for the main application. Please use a different environment name."
+
     try:
-        # If the folder already exists, skip creation
         if os.path.isdir(env_name):
             return f"Virtual environment '{env_name}' already exists. Skipping creation."
-
         subprocess.check_call([sys.executable, "-m", "venv", env_name])
         return f"Virtual environment '{env_name}' created successfully."
     except Exception as e:
         return f"Error creating virtual environment: {str(e)}"
 
 def install_package(env_name, package_name):
-    """
-    Installs a package in the specified virtual environment.
-    """
+    if env_name == "env":
+        return "Error: 'env' is reserved for the main application. Installation aborted."
+    
     try:
         python_exec = (
             os.path.join(env_name, "Scripts", "python")
@@ -60,9 +71,9 @@ def install_package(env_name, package_name):
         return f"Error installing package '{package_name}': {str(e)}"
 
 def run_python_file(env_name, file_path):
-    """
-    Runs a Python file inside the specified virtual environment.
-    """
+    if env_name == "env":
+        return "Error: 'env' is reserved for the main application. Cannot run a file in this env."
+    
     try:
         python_exec = (
             os.path.join(env_name, "Scripts", "python")
@@ -88,12 +99,11 @@ def create_or_edit_file(project_name, file_path, content):
     # Ensure a venv is created for this project
     if project_name not in created_envs:
         create_venv_result = create_virtual_env(project_name)
-        print(create_venv_result)  # For logging
+        print(create_venv_result)
         created_envs.add(project_name)
 
     full_path = os.path.join(project_name, file_path)
     try:
-        # Ensure the directory exists
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
 
         # Check if the file already exists
@@ -112,6 +122,9 @@ def create_or_edit_file(project_name, file_path, content):
         if file_path.endswith(".py"):
             run_result = run_python_file(project_name, full_path)
             msg += f"\n---\nAttempted to run '{file_path}' in '{project_name}':\n{run_result}"
+
+        # Update the knowledge base with the new/edited code
+        update_knowledge_base(project_name)
 
         return msg
     except Exception as e:
@@ -202,55 +215,80 @@ functions = [
             },
             "required": ["env_name", "file_path"]
         }
+    },
+    {
+        "name": "append_to_blueprint",
+        "description": "Append new design/structural info to the project's blueprint summary.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "update_text": {"type": "string", "description": "New info to add to the blueprint."}
+            },
+            "required": ["update_text"]
+        }
     }
 ]
 
 #################################
-# 5. SYSTEM PROMPT
+# 4. SYSTEM PROMPT
 #################################
 
-def get_system_prompt():
+def get_system_prompt(relevant_code_snippets=None):
     """
-    Updated system prompt to ensure the AI first creates a virtual environment
-    for every project, then creates/edits files, and runs the Python file after success.
+    Updated system prompt to:
+    - Summarize the current blueprint
+    - Show relevant code snippets (retrieved by semantic search)
+    - Emphasize the instructions about how to handle file creation/editing/running
+    - Emphasize storing code in multiple well-organized files, chunked by function/class in the knowledge base
     """
-    return {
-        "role": "system",
-        "content": (
-            "Develop end-to-end software solutions autonomously using Python. "
-            "Whenever you create or edit a file for a project, you must first ensure "
-            "a virtual environment for that project is created. Then you create/edit "
-            "the file, and if the file is a Python file, you automatically run it. "
-            "Focus exclusively on creating/editing project files, creating virtual environments, "
-            "installing Python packages, and running Python scripts. Avoid OS-level or "
-            "admin-level operations. "
-            "Always read a file before editing it if you suspect it has content.\n"
-            f"Note: {notes}"
-        )
-    }
+    snippet_text = ""
+    if relevant_code_snippets:
+        snippet_text = "\n\nRelevant code snippets:\n\n" + "\n\n---\n\n".join(relevant_code_snippets)
+
+    base_prompt = (
+        f"Develop end-to-end software solutions autonomously using Python.\n"
+        f"PROJECT BLUEPRINT:\n{project_blueprint}\n"
+        f"NOTES:\n{notes}\n"
+        f"{snippet_text}\n\n"
+        "Whenever you create or edit a file for a project, you must first ensure a virtual environment for that project is created.\n"
+        "Then create/edit the file, and if the file is a Python file, automatically run it.\n\n"
+        "IMPORTANT: We want the code split into multiple well-organized files where appropriate, each file focusing on a specific class or function group.\n"
+        "We also store code in the knowledge base using function/class-based chunking, so we can precisely locate and fix code.\n\n"
+        "Focus exclusively on:\n"
+        "1. Creating/editing project files.\n"
+        "2. Creating virtual environments.\n"
+        "3. Installing Python packages.\n"
+        "4. Running Python scripts.\n\n"
+        "Always read a file before editing it if you suspect it has content.\n"
+        "If you have multi-step tasks, plan them out carefully and call multiple functions as needed.\n"
+    )
+    return {"role": "system", "content": base_prompt}
 
 #################################
-# 6. MAIN
+# 5. MAIN
 #################################
 
 def main():
-    print("Welcome to the Python-Only Manager!")
+    print("Welcome to the Python-Only Manager (Large-Scale)!")
     print("Type your goal or instructions. Type 'exit', 'quit', or 'q' to quit.")
 
     messages = []
-    max_token_limit = 5000  # Adjust as needed
+    max_token_limit = 5000
     model = "o3-mini"
-    max_retries = 3  # how many times we retry if there's an error
+    max_retries = 3
 
-    # A dictionary to map function calls to actual Python functions
     function_map = {
         "create_or_edit_file": create_or_edit_file,
         "write_note": write_note,
         "read_file": read_file,
         "create_virtual_env": create_virtual_env,
         "install_package": install_package,
-        "run_python_file": run_python_file
+        "run_python_file": run_python_file,
+        "append_to_blueprint": append_to_blueprint,
     }
+
+    # (Optional) Initialize or update the knowledge base once at startup
+    # e.g., update_knowledge_base("my_project")
 
     while True:
         user_input = input("You: ")
@@ -258,42 +296,48 @@ def main():
             print("Goodbye!")
             break
 
-        # Append user message
+        # 1. Retrieve relevant code from the knowledge base
+        relevant_snippets = retrieve_relevant_code(user_input, top_k=3)
+
+        # 2. Insert system prompt (including relevant code snippets)
+        system_prompt = get_system_prompt(relevant_code_snippets=relevant_snippets)
+        messages.append(system_prompt)
+
+        # 3. Append the user's message
         messages.append({"role": "user", "content": user_input})
+
         # Prune if needed
         messages = TokenUtils.prune_messages(messages, max_token_limit, model=model)
 
-        # Insert system prompt before the user's message (just before the last index)
-        system_prompt_index = len(messages) - 1
-        messages.insert(system_prompt_index, get_system_prompt())
-
         # We'll allow multiple retries if we keep hitting errors
         for attempt in range(max_retries):
-            # 1. Call the model
-            response = openai.chat.completions.create(
-                model=model,
-                messages=messages,
-                functions=functions,
-                function_call="auto"
-            )
+            try:
+                # 1. Call the model
+                response = openai.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    functions=functions,
+                    function_call="auto"
+                )
+            except Exception as e:
+                print(f"Error calling model: {e}")
+                break
 
-            # 2. Remove the inserted system prompt (so we don’t keep duplicating it)
-            messages.pop(system_prompt_index)
-
-            # 3. Extract the assistant message
+            # 2. Extract the assistant message
             assistant_msg = response.choices[0].message
             assistant_dict = assistant_msg.model_dump()
-            # Save it to the conversation
             messages.append(assistant_dict)
-
-            # 4. Prune if needed
+            # 3. Prune if needed
             messages = TokenUtils.prune_messages(messages, max_token_limit, model=model)
 
-            # 5. Check if there's a function call
             if assistant_msg.function_call:
                 func_name = assistant_msg.function_call.name
-                # function_call.arguments is a JSON string, so parse it
-                func_args = json.loads(assistant_msg.function_call.arguments)
+                try:
+                    func_args = json.loads(assistant_msg.function_call.arguments)
+                except json.JSONDecodeError:
+                    result = "Error: Could not parse function arguments."
+                    print("Assistant (function result):", result)
+                    break
 
                 if func_name in function_map:
                     try:
@@ -304,31 +348,35 @@ def main():
                         result = f"Error during function execution: {str(e)}"
                 else:
                     result = f"Error: Function '{func_name}' not implemented."
+                print(result)
 
-                # 6. If the result is an error, feed it back as an assistant message so the model can fix it
                 if result.lower().startswith("error"):
                     error_message = {
                         "role": "assistant",
                         "content": f"I encountered an error:\n{result}\nWhat should I do next?"
                     }
                     messages.append(error_message)
-                    # Insert system prompt again before we call next time
-                    system_prompt_index = len(messages) - 1
-                    messages.insert(system_prompt_index, get_system_prompt())
-                    # Let the loop continue, model tries to fix the error
+                    # Remove the system prompt we inserted before repeating
+                    messages = [m for m in messages if m != system_prompt]
+                    # Insert updated system prompt again
+                    system_prompt = get_system_prompt()
+                    messages.append(system_prompt)
                 else:
-                    # No error; just print the result and break out of retry loop
-                    print(f"Assistant (function result): {result}")
+                    print("Assistant (function result):", result)
+                    # After success, remove the system prompt so it doesn't accumulate
+                    messages = [m for m in messages if m != system_prompt]
                     break
+
             else:
-                # 7. Otherwise, the model responded with plain text
+                # The model responded with plain text
                 print(f"Assistant: {assistant_msg.content}")
-                break  # No function call to handle, so break
+                # Remove the system prompt after a normal text answer
+                messages = [m for m in messages if m != system_prompt]
+                break
 
         else:
-            # If we exit the for-loop via exhaustion (no break),
-            # we might want to say we ran out of retries.
             print("Reached max retries without resolving errors. Stopping here.")
+
 
 if __name__ == "__main__":
     main()
