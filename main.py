@@ -1,4 +1,4 @@
-import openai
+import openai  # <-- same import, but the usage below changes
 import os
 import subprocess
 import json
@@ -87,7 +87,11 @@ def install_package(env_name, package_name):
     Installs a package in the specified virtual environment.
     """
     try:
-        python_exec = os.path.join(env_name, "Scripts", "python") if os.name == 'nt' else os.path.join(env_name, "bin", "python")
+        python_exec = (
+            os.path.join(env_name, "Scripts", "python")
+            if os.name == 'nt'
+            else os.path.join(env_name, "bin", "python")
+        )
         subprocess.check_call([python_exec, "-m", "pip", "install", package_name])
         return f"Package '{package_name}' installed successfully in '{env_name}'."
     except Exception as e:
@@ -98,7 +102,11 @@ def run_python_file(env_name, file_path):
     Runs a Python file inside the specified virtual environment.
     """
     try:
-        python_exec = os.path.join(env_name, "Scripts", "python") if os.name == 'nt' else os.path.join(env_name, "bin", "python")
+        python_exec = (
+            os.path.join(env_name, "Scripts", "python")
+            if os.name == 'nt'
+            else os.path.join(env_name, "bin", "python")
+        )
         result = subprocess.run([python_exec, file_path], capture_output=True, text=True)
         if result.returncode == 0:
             return f"Output:\n{result.stdout}"
@@ -188,9 +196,9 @@ functions = [
 # 4. TOKEN COUNTING & PRUNING
 #################################
 
-def num_tokens_from_messages(messages, model="gpt-4"):
+def num_tokens_from_messages(messages):
     """Returns the number of tokens used by a list of messages."""
-    encoding = tiktoken.encoding_for_model(model)
+    encoding = tiktoken.get_encoding("cl100k_base")
     num_tokens = 0
     for message in messages:
         # Base tokens per message
@@ -210,7 +218,7 @@ def prune_messages(messages, max_tokens, model="gpt-4"):
     Prune the messages to keep total tokens under max_tokens.
     This removes older user/assistant messages but keeps the system prompt and the most recent interactions.
     """
-    while num_tokens_from_messages(messages, model) > max_tokens:
+    while num_tokens_from_messages(messages) > max_tokens:
         # Check if there are messages to remove (excluding system prompt)
         if len(messages) > 2:
             messages.pop(1)  # Remove the second message (after system prompt)
@@ -244,7 +252,7 @@ def main():
 
     messages = []
     max_token_limit = 5000  # Adjust as needed
-    model = "gpt-4"
+    model = "o3-mini"
 
     while True:
         user_input = input("You: ")
@@ -261,26 +269,38 @@ def main():
         system_prompt_index = len(messages) - 1
         messages.insert(system_prompt_index, get_system_prompt())
 
-        # Call the OpenAI ChatCompletion
-        response = openai.ChatCompletion.create(
+        # ------------------------------------------------------------------
+        # Below is the new call for openai>=1.0.0
+        # ------------------------------------------------------------------
+        response = openai.chat.completions.create(  # <-- changed for 1.0.0+
             model=model,
             messages=messages,
             functions=functions,
             function_call="auto"
         )
 
-        assistant_msg = response.choices[0].message
-        assistant_dict = assistant_msg.to_dict()
+        # The response is a pydantic model, so you can access top-level fields directly:
+        # e.g. response.choices, response.usage, etc.
+        # Each choice has a "message" attribute.
+        assistant_msg = response.choices[0].message  # This is also a pydantic model
+        # assistant_msg.content -> raw content from the assistant
+        # assistant_msg.function_call -> function call from the assistant (if any)
 
-        # Remove the inserted system prompt
+        # Remove the inserted system prompt from messages
         messages.pop(system_prompt_index)
+
+        # Convert the assistant message to a dictionary if you prefer dictionary logic
+        assistant_dict = assistant_msg.model_dump()  # <-- changed for 1.0.0+
         messages.append(assistant_dict)
+
+        # Prune again if needed
         messages = prune_messages(messages, max_token_limit, model=model)
 
-        # If the model wants to call a function
-        if assistant_dict.get("function_call"):
-            func_name = assistant_dict["function_call"]["name"]
-            func_args = json.loads(assistant_dict["function_call"]["arguments"])
+        # Check if there's a function call
+        if assistant_msg.function_call:
+            func_name = assistant_msg.function_call.name
+            # function_call.arguments is a JSON string, so parse it
+            func_args = json.loads(assistant_msg.function_call.arguments)
 
             # Map function call
             function_map = {
