@@ -1,0 +1,20 @@
+# Ignore OpenAI API key file
+api_key.txt
+
+# Ignore Python virtual environment
+env/
+
+# Ignore Python cache files and compiled files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore Jupyter notebook checkpoints (if applicable)
+.ipynb_checkpoints
+
+# Ignore VS Code settings
+.vscode/
+
+# Ignore macOS files
+.DS_Store
