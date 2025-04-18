@@ -269,13 +269,14 @@ def get_system_prompt(relevant_code_snippets=None):
 #################################
 
 def main():
-    print("Welcome to the Python-Only Manager (Large-Scale)!")
+    print("Welcome to the Autonomofus Software Develop AI!")
     print("Type your goal or instructions. Type 'exit', 'quit', or 'q' to quit.")
 
     messages = []
-    max_token_limit = 5000
+    max_token_limit = 20000
     model = "o3-mini"
-    max_retries = 3
+    # model = "gpt-4.1"
+    max_retries = 5
 
     function_map = {
         "create_or_edit_file": create_or_edit_file,
