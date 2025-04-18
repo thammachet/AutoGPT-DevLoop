@@ -1,455 +1,467 @@
-# main.py
 import openai
 import os
 import subprocess
 import json
 import sys
-import time
-
+import Utils.EnvironmentManagement as env_mgmt
 import Utils.Token as TokenUtils
-import Utils.EnvironmentManagement as EnvUtils
-import Utils.Logger as ExperimentLogger  # <--- Import the logger
+import knowledge_base as kb  # <-- We already have the import
 
-from knowledge_base import update_knowledge_base, retrieve_relevant_code
+# Set your OpenAI API key
+openai.api_key = env_mgmt.load_api_key()
 
-#################################
-# 1. HELPER: Load API Key
-#################################
+MAX_TOKEN_LIMIT = 10000  
 
-openai.api_key = EnvUtils.load_api_key()
 
-#################################
-# 2. GLOBALS & FUNCTION DEFINITIONS
-#################################
-
-notes = ""  # Global note variable
-project_blueprint = (
-    "High-level blueprint:\n"
-    "- Summaries of major modules, classes, design patterns.\n"
-    "This blueprint will be updated as the project evolves.\n"
-)
-created_envs = set()
-
-def write_note(note):
-    global notes
-    notes = note
-    return "Note written."
-
-def append_to_blueprint(update_text):
-    global project_blueprint
-    project_blueprint += f"\nUPDATE: {update_text}\n"
-    return "Project blueprint updated."
-
-def create_virtual_env(env_name="venv"):
-    if env_name == "env":
-        return "Error: 'env' is reserved for the main application. Please use a different environment name."
-
-    try:
-        if os.path.isdir(env_name):
-            return f"Virtual environment '{env_name}' already exists. Skipping creation."
-        subprocess.check_call([sys.executable, "-m", "venv", env_name])
-        return f"Virtual environment '{env_name}' created successfully."
-    except Exception as e:
-        return f"Error creating virtual environment: {str(e)}"
-
-def install_package(env_name, package_name):
-    if env_name == "env":
-        return "Error: 'env' is reserved for the main application. Installation aborted."
-    
-    try:
-        python_exec = (
-            os.path.join(env_name, "Scripts", "python")
-            if os.name == 'nt'
-            else os.path.join(env_name, "bin", "python")
-        )
-        subprocess.check_call([python_exec, "-m", "pip", "install", package_name])
-        return f"Package '{package_name}' installed successfully in '{env_name}'."
-    except Exception as e:
-        return f"Error installing package '{package_name}': {str(e)}"
-
-def run_python_file(env_name, file_path):
-    if env_name == "env":
-        return "Error: 'env' is reserved for the main application. Cannot run a file in this env."
-    
-    try:
-        python_exec = (
-            os.path.join(env_name, "Scripts", "python")
-            if os.name == 'nt'
-            else os.path.join(env_name, "bin", "python")
-        )
-        result = subprocess.run([python_exec, file_path], capture_output=True, text=True)
-        if result.returncode == 0:
-            return f"Output:\n{result.stdout}"
-        else:
-            return f"Error running file:\n{result.stderr}. Please check if you have run with correct env."
-    except Exception as e:
-        return f"Error: {str(e)}"
-
-def create_or_edit_file(project_name, file_path, content):
-    global created_envs
-
-    if project_name not in created_envs:
-        create_venv_result = create_virtual_env(project_name)
-        # Log the creation of the environment
-        ExperimentLogger.log_event(
-            event_type="FUNCTION_CALL",
-            event_details=f"create_virtual_env('{project_name}') -> {create_venv_result}",
-            success=not create_venv_result.lower().startswith("error")
-        )
-        created_envs.add(project_name)
-
-    full_path = os.path.join(project_name, file_path)
-    try:
-        os.makedirs(os.path.dirname(full_path), exist_ok=True)
-
-        if os.path.isfile(full_path):
-            action = "edited"
-        else:
-            action = "created"
-
-        with open(full_path, 'w', encoding="utf-8") as f:
-            f.write(content)
-
-        msg = f"File '{file_path}' {action} successfully in project '{project_name}'."
-        
-        # Log the file creation/edit event
-        ExperimentLogger.log_event(
-            event_type="FUNCTION_CALL",
-            event_details=f"{action} file '{full_path}'",
-            success=True
-        )
-
-        if file_path.endswith(".py"):
-            run_result = run_python_file(project_name, full_path)
-            msg += f"\n---\nAttempted to run '{file_path}' in '{project_name}':\n{run_result}"
-            # Log the run attempt
-            ExperimentLogger.log_event(
-                event_type="FUNCTION_CALL",
-                event_details=f"run_python_file('{project_name}', '{full_path}') -> {run_result}",
-                success=not run_result.lower().startswith("error")
-            )
-
-        update_knowledge_base(project_name)
-        return msg
-
-    except Exception as e:
-        return f"Error: {str(e)}"
-
-def read_file(full_path):
-    try:
-        with open(full_path, 'r', encoding="utf-8") as f:
-            content = f.read()
-        return f"Content of '{full_path}':\n{content}"
-    except Exception as e:
-        return f"Error: {str(e)}"
-
-#################################
-# 3. OPENAI FUNCTION SCHEMA
-#################################
-
+# Define the function schemas for function calling
 functions = [
     {
-        "name": "create_or_edit_file",
-        "description": "Create or edit a file within the project folder. Automatically ensures a virtual environment exists and runs the file if it ends in '.py'.",
+        "name": "create_project_folder",
+        "description": "Create a new project folder",
         "parameters": {
             "type": "object",
             "properties": {
-                "project_name": {"type": "string"},
-                "file_path": {"type": "string"},
-                "content": {"type": "string"}
+                "project_name": {
+                    "type": "string",
+                    "description": "The name of the project folder to create"
+                }
+            },
+            "required": ["project_name"]
+        }
+    },
+    {
+        "name": "create_virtual_environment",
+        "description": "Create or activate a virtual environment within the project folder",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "env_name": {
+                    "type": "string",
+                    "description": "The name of the virtual environment"
+                },
+                "project_name": {
+                    "type": "string",
+                    "description": "The project folder to create the environment in"
+                }
+            },
+            "required": ["env_name", "project_name"]
+        }
+    },
+    {
+        "name": "install_library",
+        "description": "Install a Python library using pip within the project environment",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "library_name": {
+                    "type": "string",
+                    "description": "The name of the library to install"
+                },
+                "env_name": {
+                    "type": "string",
+                    "description": "The name of the virtual environment"
+                },
+                "project_name": {
+                    "type": "string",
+                    "description": "The project folder containing the environment"
+                }
+            },
+            "required": ["library_name", "env_name", "project_name"]
+        }
+    },
+    {
+        "name": "create_python_file",
+        "description": "Create a new Python file within the project folder, with optional additional path",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "project_name": {
+                    "type": "string",
+                    "description": "The project folder to create the file in"
+                },
+                "file_path": {
+                    "type": "string",
+                    "description": "The path to the Python file to create, relative to the project folder"
+                },
+                "content": {
+                    "type": "string",
+                    "description": "The content to write into the Python file"
+                }
             },
             "required": ["project_name", "file_path", "content"]
         }
     },
     {
-        "name": "write_note",
-        "description": "Write a note about the fundamentals of this project, overwriting any previous note.",
+        "name": "edit_python_file",
+        "description": "Edit an existing Python file within the project folder, with optional additional path",
         "parameters": {
             "type": "object",
             "properties": {
-                "note": {"type": "string"}
+                "project_name": {
+                    "type": "string",
+                    "description": "The project folder containing the file"
+                },
+                "file_path": {
+                    "type": "string",
+                    "description": "The path to the Python file to edit, relative to the project folder"
+                },
+                "content": {
+                    "type": "string",
+                    "description": "The new content to write into the Python file"
+                }
             },
-            "required": ["note"]
+            "required": ["project_name", "file_path", "content"]
+        }
+    },
+    {
+        "name": "execute_python_file",
+        "description": "Execute a Python file within the project folder and return the output",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "file_path": {
+                    "type": "string",
+                    "description": "The path to the Python file to execute, relative to the project folder"
+                },
+                "env_name": {
+                    "type": "string",
+                    "description": "The name of the virtual environment to use for execution"
+                },
+                "project_name": {
+                    "type": "string",
+                    "description": "The project folder containing the file and environment"
+                }
+            },
+            "required": ["file_path", "env_name", "project_name"]
         }
     },
     {
         "name": "read_file",
-        "description": "Read and return the content of a file.",
+        "description": "Read the content of a file within the project folder, with optional additional path",
         "parameters": {
             "type": "object",
             "properties": {
-                "full_path": {"type": "string"}
+                "project_name": {
+                    "type": "string",
+                    "description": "The project folder containing the file"
+                },
+                "file_path": {
+                    "type": "string",
+                    "description": "The path to the file to read, relative to the project folder"
+                }
             },
-            "required": ["full_path"]
+            "required": ["project_name", "file_path"]
         }
     },
     {
-        "name": "create_virtual_env",
-        "description": "Create a Python virtual environment in the current directory. If it already exists, do nothing.",
+        "name": "list_files_and_folders",
+        "description": "List the files and folders within the specified project folder, with optional additional path, supporting nested directories",
         "parameters": {
             "type": "object",
             "properties": {
-                "env_name": {"type": "string"}
+                "project_name": {
+                    "type": "string",
+                    "description": "The project folder to list the contents of"
+                },
+                "additional_path": {
+                    "type": "string",
+                    "description": "An additional path within the project folder to list contents of"
+                }
             },
-            "required": []
+            "required": ["project_name"]
         }
     },
     {
-        "name": "install_package",
-        "description": "Install a package in the specified Python virtual environment.",
+        "name": "generate_project_structure",
+        "description": "Generate a project folder with a specified structure.",
         "parameters": {
             "type": "object",
             "properties": {
-                "env_name": {"type": "string"},
-                "package_name": {"type": "string"}
+                "project_name": {
+                    "type": "string",
+                    "description": "The name of the project folder to create"
+                },
+                "structure": {
+                    "type": "object",
+                    "description": "A nested dictionary representing the project structure, where keys are folder or file names, and values are either another dictionary (for folders) or file content (for files)"
+                }
             },
-            "required": ["env_name", "package_name"]
+            "required": ["project_name", "structure"]
         }
     },
     {
-        "name": "run_python_file",
-        "description": "Run a Python file inside the specified virtual environment.",
+        "name": "summarize_project",
+        "description": "Summarize the project structure and provide an overview of the project files.",
         "parameters": {
             "type": "object",
             "properties": {
-                "env_name": {"type": "string"},
-                "file_path": {"type": "string"}
+                "project_name": {
+                    "type": "string",
+                    "description": "The project folder to summarize"
+                }
             },
-            "required": ["env_name", "file_path"]
+            "required": ["project_name"]
         }
     },
-    {
-        "name": "append_to_blueprint",
-        "description": "Append new design/structural info to the project's blueprint summary.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "update_text": {"type": "string"}
-            },
-            "required": ["update_text"]
-        }
-    }
 ]
 
-#################################
-# 4. SYSTEM PROMPT
-#################################
+# --- Existing function definitions (create_project_folder, create_virtual_environment, install_library, etc.) ---
+# No changes except we keep them as is. 
+def create_project_folder(project_name):
+    try:
+        if not os.path.isdir(project_name):
+            os.makedirs(project_name)
+            return f"Project folder '{project_name}' created successfully."
+        else:
+            return f"Project folder '{project_name}' already exists."
+    except Exception as e:
+        return str(e)
 
-def get_system_prompt(relevant_code_snippets=None):
-    snippet_text = ""
-    if relevant_code_snippets:
-        snippet_text = "\n\nRelevant code snippets:\n\n" + "\n\n---\n\n".join(relevant_code_snippets)
+def create_virtual_environment(env_name, project_name):
+    try:
+        env_path = os.path.join(project_name, env_name)
+        if not os.path.isdir(env_path):
+            result = subprocess.run(['python', '-m', 'venv', env_path], capture_output=True, text=True)
+            if result.returncode == 0:
+                return f"Virtual environment '{env_name}' created successfully in project '{project_name}'."
+            else:
+                return f"Error creating virtual environment '{env_name}': {result.stderr}"
+        else:
+            return f"Virtual environment '{env_name}' already exists in project '{project_name}' and is ready to use."
+    except Exception as e:
+        return str(e)
 
-    base_prompt = (
-        f"Develop end-to-end software solutions autonomously using Python.\n"
-        f"PROJECT BLUEPRINT:\n{project_blueprint}\n"
-        f"NOTES:\n{notes}\n"
-        f"{snippet_text}\n\n"
-        "Whenever you create or edit a file for a project, you must first ensure a virtual environment for that project is created.\n"
-        "Then create/edit the file, and if the file is a Python file, automatically run it.\n\n"
-        "IMPORTANT: We want the code split into multiple well-organized files where appropriate.\n"
-        "We also store code in the knowledge base using function/class-based chunking, so we can precisely locate and fix code.\n\n"
-        "Focus exclusively on:\n"
-        "1. Creating/editing project files.\n"
-        "2. Creating virtual environments.\n"
-        "3. Installing Python packages.\n"
-        "4. Running Python scripts.\n\n"
-        "Always read a file before editing it if you suspect it has content.\n"
-        "If you have multi-step tasks, plan them out carefully and call multiple functions as needed.\n"
-    )
-    return {"role": "system", "content": base_prompt}
+def install_library(library_name, env_name, project_name):
+    print(f"Installing {library_name} in {env_name} of {project_name}")
+    try:
+        env_path = os.path.join(project_name, env_name)
+        if os.name == 'nt':  # Windows
+            pip_executable = os.path.join(env_path, 'Scripts', 'pip.exe')
+        else:
+            pip_executable = os.path.join(env_path, 'bin', 'pip')
+        command = [pip_executable, 'install', library_name]
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode == 0:
+            return f"Library '{library_name}' installed successfully in environment '{env_name}'."
+        else:
+            return f"Error installing library '{library_name}': {result.stderr}"
+    except Exception as e:
+        return str(e)
 
-#################################
-# 5. MAIN
-#################################
+def create_python_file(project_name, file_path, content):
+    try:
+        full_path = os.path.join(project_name, file_path)
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        with open(full_path, 'w') as f:
+            f.write(content)
+        return f"File '{file_path}' created successfully in project '{project_name}'. Should we run it now? (call the excute funtion, if yes)"
+    except Exception as e:
+        return str(e)
+
+def edit_python_file(project_name, file_path, content):
+    try:
+        full_path = os.path.join(project_name, file_path)
+        if os.path.isfile(full_path):
+            with open(full_path, 'w') as f:
+                f.write(content)
+            return f"File '{file_path}' edited successfully in project '{project_name}'."
+        else:
+            return f"File '{file_path}' does not exist in project '{project_name}'."
+    except Exception as e:
+        return str(e)
+    
+def execute_python_file(file_path, env_name, project_name):
+    try:
+        env_path = os.path.join(project_name, env_name)
+        full_file_path = os.path.join(project_name, file_path)
+        
+        if env_name:
+            if os.name == 'nt':  # Windows
+                python_executable = os.path.join(env_path, 'Scripts', 'python.exe')
+            else:
+                python_executable = os.path.join(env_path, 'bin', 'python')
+        else:
+            python_executable = 'python'
+
+        # Use subprocess.run with capture_output to capture both stdout and stderr directly
+        result = subprocess.run(
+            [python_executable, full_file_path],
+            capture_output=True,
+            text=True
+        )
+
+        if result.returncode == 0:
+            return f"Execution successful.\n**Output**:\n{result.stdout}"
+        else:
+            return (
+                f"Execution failed with exit code {result.returncode}.\n"
+                f"**Stdout**:\n{result.stdout}\n"
+                f"**Stderr**:\n{result.stderr}"
+            )
+    except Exception as e:
+        return str(e)
+
+
+def read_file(project_name, file_path):
+    try:
+        full_path = os.path.join(project_name, file_path)
+        with open(full_path, 'r') as f:
+            content = f.read()
+        return f"Content of '{file_path}':\n{content}"
+    except Exception as e:
+        return str(e)
+
+def list_files_and_folders(project_name, additional_path=""):
+    try:
+        path = os.path.join(project_name, additional_path)
+        if os.path.isdir(path):
+            items = []
+            for item in os.listdir(path):
+                item_path = os.path.join(path, item)
+                if os.path.isdir(item_path):
+                    items.append(f"{item}/")
+                else:
+                    items.append(item)
+            return f"Contents of '{path}':\n" + '\n'.join(items)
+        else:
+            return f"'{path}' is not a valid directory."
+    except Exception as e:
+        return str(e)
+
 
 def main():
-    print("Welcome to the Autonomofus Software Develop AI!")
-    
-    # ----------------------------------------------------------------------
-    # (A) Ask or parse difficulty level, task, and trial for logging context
-    # ----------------------------------------------------------------------
-    # You could also parse from sys.argv or a config file; here we ask the user.
-    try:
-        difficulty_level = int(input("Enter difficulty level (1-5): ").strip())
-        task_number = int(input("Enter task number (1-3): ").strip())
-        trial_number = int(input("Enter trial number (1-5): ").strip())
-    except ValueError:
-        print("Invalid input for difficulty/task/trial. Defaulting to L1_T1_Trial1.")
-        difficulty_level, task_number, trial_number = 1, 1, 1
-    
-    ExperimentLogger.set_experiment_context(difficulty_level, task_number, trial_number)
-    
-    print("Type your goal or instructions. Type 'exit', 'quit', or 'q' to quit.")
+    system_prompt = {
+        "role": "system",
+        "content": (
+                    "You are an AI assistant that can perform tasks in the command prompt using Python functions.\n"
+        "Follow these steps for each user request:\n"
+        "1. If the user wants to create a Python file, create it using 'create_python_file', then *always* call "
+        "'execute_python_file' to run it (unless there's a clear reason not to).\n"
+        "2. If the user wants to edit a Python file, use 'edit_python_file', then call 'execute_python_file'.\n"
+        "3. All virtual environments and files must be created within the project folder.\n"
+        "If an error occurs, fix it by editing or re-running as needed.\n"
+        "Do not mention the function names in the user-facing message.\n"
+        "For bigger projects, plan out the steps, create or edit multiple files, and run them when appropriate.\n"
+        "Always respond succinctly.\n"
+        )
+    }
+
+    print("Welcome to the ChatGPT Command Prompt Controller!")
+    print("Type your high-level goals below. Type 'exit', 'quit', or 'q' to quit.")
 
     messages = []
-    max_token_limit = 20000
-    model = "o3-mini"
-    max_retries = 20
-
-    function_map = {
-        "create_or_edit_file": create_or_edit_file,
-        "write_note": write_note,
-        "read_file": read_file,
-        "create_virtual_env": create_virtual_env,
-        "install_package": install_package,
-        "run_python_file": run_python_file,
-        "append_to_blueprint": append_to_blueprint,
-    }
 
     while True:
         user_input = input("You: ")
         if user_input.lower() in ['exit', 'quit', 'q']:
             print("Goodbye!")
-            # Write out the CSV logs
-            ExperimentLogger.write_logs_to_csv()
             break
 
-        # ---------------------------
-        # Start timer for this query
-        # ---------------------------
-        start_time = time.time()
-
-        # Log the user input
-        ExperimentLogger.log_event(
-            event_type="USER_INPUT",
-            event_details=user_input
-        )
-
-        # 1. Retrieve relevant code from the knowledge base
-        relevant_snippets = retrieve_relevant_code(user_input, top_k=3)
-
-        # 2. Insert system prompt
-        system_prompt = get_system_prompt(relevant_code_snippets=relevant_snippets)
-        messages.append(system_prompt)
-
-        # Log the system prompt
-        ExperimentLogger.log_event(
-            event_type="SYSTEM_PROMPT",
-            event_details=str(system_prompt["content"])[:500]  # or full text if desired
-        )
-
-        # 3. Append the user's message
+        # Append user message
         messages.append({"role": "user", "content": user_input})
-        messages = TokenUtils.prune_messages(messages, max_token_limit, model=model)
 
-        for attempt in range(max_retries):
-            try:
-                response = openai.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    functions=functions,
-                    function_call="auto"
+        # ---------------------------------------------------------------------
+        # 1. Retrieve relevant code from knowledge base before each completion
+        # ---------------------------------------------------------------------
+        # This query uses the user's entire prompt. 
+        relevant_snippets = kb.retrieve_relevant_code(query=user_input, top_k=3)
+        if relevant_snippets:
+            snippet_text = "\n\n".join(relevant_snippets)
+            # Insert as a system message so the model can draw upon it
+            print("Snippets from knowledge base:\n", snippet_text)
+            knowledge_system_msg = {
+                "role": "system",
+                "content": (
+                    "Relevant code snippets from knowledge base:\n\n"
+                    f"{snippet_text}"
                 )
-            except Exception as e:
-                # Log the error
-                ExperimentLogger.log_event(
-                    event_type="ERROR",
-                    event_details=f"Error calling model: {e}",
-                    success=False
-                )
-                break
+            }
+            # Insert this before the user message (just after last system prompt if any)
+            # We'll place it at the second to last position, so it doesn't override the final user message.
+            messages.insert(len(messages) - 1, knowledge_system_msg)
 
-            assistant_msg = response.choices[0].message
-            assistant_dict = assistant_msg.model_dump()
-            messages.append(assistant_dict)
-            messages = TokenUtils.prune_messages(messages, max_token_limit, model=model)
+        max_iterations = 30
+        iteration = 0
 
-            # Log the raw assistant response (truncated if very long)
-            ExperimentLogger.log_event(
-                event_type="AI_RESPONSE",
-                event_details=str(assistant_msg.content)[:500] if assistant_msg.content else "(No direct content)"
+        while iteration < max_iterations:
+            iteration += 1
+
+            messages = TokenUtils.prune_messages(messages, MAX_TOKEN_LIMIT)
+
+
+            # Insert system prompt just before the last user or system context
+            system_prompt_index = len(messages) - 1
+            messages.insert(system_prompt_index, system_prompt)
+
+            response = openai.chat.completions.create(
+                model="o4-mini",
+                messages=messages,
+                functions=functions,
+                function_call="auto",
+                reasoning_effort="high",
             )
+            assistant_message = response.choices[0].message
 
-            if assistant_msg.function_call:
-                func_name = assistant_msg.function_call.name
-                try:
-                    func_args = json.loads(assistant_msg.function_call.arguments)
-                except json.JSONDecodeError:
-                    result = "Error: Could not parse function arguments."
-                    # Log parsing error
-                    ExperimentLogger.log_event(
-                        event_type="ERROR",
-                        event_details=result,
-                        success=False
-                    )
-                    break
+            # Remove the system prompt from messages
+            messages.pop(system_prompt_index)
 
-                if func_name in function_map:
+            messages.append(assistant_message)
+
+            if assistant_message.function_call:
+                function_name = assistant_message.function_call.name
+                function_args = json.loads(assistant_message.function_call.arguments)
+
+                function_map = {
+                    "create_project_folder": create_project_folder,
+                    "create_virtual_environment": create_virtual_environment,
+                    "install_library": install_library,
+                    "create_python_file": create_python_file,
+                    "edit_python_file": edit_python_file,
+                    "execute_python_file": execute_python_file,
+                    "read_file": read_file,
+                    "list_files_and_folders": list_files_and_folders,
+                }
+
+                function_to_call = function_map.get(function_name)
+                if function_to_call:
                     try:
-                        result = function_map[func_name](**func_args)
-                        # Log the function call
-                        ExperimentLogger.log_event(
-                            event_type="FUNCTION_CALL",
-                            event_details=f"{func_name}({func_args}) -> {result[:200]}",
-                            success=not str(result).lower().startswith("error"),
-                            start_time=start_time
-                        )
-                    except TypeError as e:
-                        result = f"Error: missing or invalid arguments. {str(e)}"
-                        # Log
-                        ExperimentLogger.log_event(
-                            event_type="ERROR",
-                            event_details=result,
-                            success=False
-                        )
+                        output = function_to_call(**function_args)
+                        print(f"Function '{function_name}' executed successfully.")
                     except Exception as e:
-                        result = f"Error during function execution: {str(e)}"
-                        # Log
-                        ExperimentLogger.log_event(
-                            event_type="ERROR",
-                            event_details=result,
-                            success=False
-                        )
+                        output = f"An error occurred: {str(e)}"
                 else:
-                    result = f"Error: Function '{func_name}' not implemented."
-                    # Log
-                    ExperimentLogger.log_event(
-                        event_type="ERROR",
-                        event_details=result,
-                        success=False
-                    )
+                    output = f"Function '{function_name}' is not implemented."
 
-                print(result)
+                # ----------------------------------------------------
+                # 2. Auto-update knowledge base if we changed code
+                # ----------------------------------------------------
+                # We'll update the knowledge base if the function modifies Python files 
+                # or the project structure.
+                if function_name in [
+                    "create_python_file",
+                    "edit_python_file",
+                    "generate_project_structure",
+                ]:
+                    project_name = function_args.get("project_name", "")
+                    if project_name:
+                        print("Updating knowledge base with new or changed files...")
+                        kb.update_knowledge_base(project_name)
 
-                if result.lower().startswith("error"):
-                    error_message = {
+                # Handle execution errors
+                if 'Execution failed' in output or 'Error' in output:
+                    messages.append({
                         "role": "assistant",
-                        "content": f"I encountered an error:\n{result}\nWhat should I do next? Or It could be a normal exit"
-                    }
-                    messages.append(error_message)
-                    # Remove the system prompt we inserted before repeating
-                    messages = [m for m in messages if m != system_prompt]
-                    system_prompt = get_system_prompt()
-                    messages.append(system_prompt)
+                        "content": f"I encountered an error:\n{output}"
+                    })
                 else:
-                    print("Assistant (function result):", result)
-                    # After success, remove the system prompt so it doesn't accumulate
-                    messages = [m for m in messages if m != system_prompt]
-                    break
+                    messages.append({
+                        "role": "assistant",
+                        "content": output
+                    })
             else:
-                # The model responded with plain text
-                print(f"Assistant: {assistant_msg.content}")
-                # Log the text response as a completion event
-                ExperimentLogger.log_event(
-                    event_type="COMPLETION",
-                    event_details="Assistant provided plain text response.",
-                    success=True,
-                    start_time=start_time
-                )
-                # Remove the system prompt after a normal text answer
-                messages = [m for m in messages if m != system_prompt]
-                break
-        else:
-            # If we exceed max_retries, log it and move on
-            fail_msg = "Reached max retries without resolving errors."
-            ExperimentLogger.log_event(
-                event_type="ERROR",
-                event_details=fail_msg,
-                success=False,
-                start_time=start_time
-            )
-            print(fail_msg)
+                # No function call, just a message
+                print(f"Assistant: {assistant_message.content}")
+                break  # exit the iteration loop
 
 if __name__ == "__main__":
     main()
