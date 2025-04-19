@@ -271,6 +271,7 @@ def edit_python_file(project_name, file_path, content):
         return str(e)
     
 def execute_python_file(file_path, env_name, project_name):
+    print(f"Executing {file_path} in {env_name} of {project_name}")
     try:
         env_path = os.path.join(project_name, env_name)
         full_file_path = os.path.join(project_name, file_path)

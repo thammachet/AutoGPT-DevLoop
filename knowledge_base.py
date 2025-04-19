@@ -111,7 +111,7 @@ def summarize_folder_structure(project_root: str) -> str:
         lines.append(f"{indent}{folder_name}/")
         sub_indent = " " * 4 * (level + 1)
         for filename in files:
-            if filename.endswith(".py"):  # Include only .py files
+            if filename.endswith(".py") or filename.endswith(".html") or filename.endswith(".css"):
                 lines.append(f"{sub_indent}{filename}")
 
     return "\n".join(lines)
