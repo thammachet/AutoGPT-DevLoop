@@ -3,6 +3,9 @@ import os
 import subprocess
 import json
 import sys
+import csv
+import time
+import datetime
 import Utils.EnvironmentManagement as env_mgmt
 import Utils.Token as TokenUtils
 import knowledge_base as kb  # <-- We already have the import
@@ -11,7 +14,6 @@ import knowledge_base as kb  # <-- We already have the import
 openai.api_key = env_mgmt.load_api_key()
 
 MAX_TOKEN_LIMIT = 10000  
-
 
 # Define the function schemas for function calling
 functions = [
@@ -206,7 +208,6 @@ functions = [
 ]
 
 # --- Existing function definitions (create_project_folder, create_virtual_environment, install_library, etc.) ---
-# No changes except we keep them as is. 
 def create_project_folder(project_name):
     try:
         if not os.path.isdir(project_name):
@@ -254,7 +255,7 @@ def create_python_file(project_name, file_path, content):
         os.makedirs(os.path.dirname(full_path), exist_ok=True)
         with open(full_path, 'w') as f:
             f.write(content)
-        return f"File '{file_path}' created successfully in project '{project_name}'. Should we run it now? (call the excute funtion, if yes)"
+        return f"File '{file_path}' created successfully in project '{project_name}'. Should we run it now? (call the execute function, if yes)"
     except Exception as e:
         return str(e)
 
@@ -284,7 +285,6 @@ def execute_python_file(file_path, env_name, project_name):
         else:
             python_executable = 'python'
 
-        # Use subprocess.run with capture_output to capture both stdout and stderr directly
         result = subprocess.run(
             [python_executable, full_file_path],
             capture_output=True,
@@ -301,7 +301,6 @@ def execute_python_file(file_path, env_name, project_name):
             )
     except Exception as e:
         return str(e)
-
 
 def read_file(project_name, file_path):
     try:
@@ -329,21 +328,77 @@ def list_files_and_folders(project_name, additional_path=""):
     except Exception as e:
         return str(e)
 
+##############################################################################
+#                         MAIN APPLICATION WITH LOGGER                       #
+##############################################################################
 
 def main():
+    """
+    Main function that starts an interactive loop:
+    1. Asks for difficulty, task, trial numbers to form a log file.
+    2. Iteratively accepts user input, calls OpenAI with function usage.
+    3. Logs each step to a CSV file (calls, messages, etc.).
+    """
+    # Ask user for experiment identifiers
+    difficulty = input("Enter difficulty level (e.g., 1,2,3,4,5): ").strip()
+    task = input("Enter task number (e.g., 1,2,3): ").strip()
+    trial = input("Enter trial number (e.g., 1,2,3,4,5): ").strip()
+
+    # Create CSV filename
+    log_filename = f"log_d{difficulty}_t{task}_tr{trial}.csv"
+
+    # Open CSV in append mode (or create if not exists)
+    # We'll write a header if file doesn't exist yet
+    file_exists = os.path.isfile(log_filename)
+    log_file = open(log_filename, mode='a', newline='', encoding='utf-8')
+    csv_writer = csv.writer(log_file)
+
+    if not file_exists:
+        csv_writer.writerow([
+            "timestamp",
+            "event_type",
+            "user_input",
+            "function_name",
+            "function_args",
+            "assistant_response",
+            "success",
+            "error",
+            "time_elapsed_seconds"
+        ])
+
+    # Helper function to log a row in the CSV
+    def log_event(event_type, user_input="", function_name="", function_args="",
+                  assistant_response="", success="", error="", time_elapsed=0.0):
+        """
+        Write a single row to the CSV log.
+        """
+        timestamp = datetime.datetime.now().isoformat()
+        csv_writer.writerow([
+            timestamp,
+            event_type,
+            user_input,
+            function_name,
+            function_args,
+            assistant_response,
+            success,
+            error,
+            f"{time_elapsed:.3f}"
+        ])
+        log_file.flush()  # ensure immediate write
+
     system_prompt = {
         "role": "system",
         "content": (
-                    "You are an AI assistant that can perform tasks in the command prompt using Python functions.\n"
-        "Follow these steps for each user request:\n"
-        "1. If the user wants to create a Python file, create it using 'create_python_file', then *always* call "
-        "'execute_python_file' to run it (unless there's a clear reason not to).\n"
-        "2. If the user wants to edit a Python file, use 'edit_python_file', then call 'execute_python_file'.\n"
-        "3. All virtual environments and files must be created within the project folder.\n"
-        "If an error occurs, fix it by editing or re-running as needed.\n"
-        "Do not mention the function names in the user-facing message.\n"
-        "For bigger projects, plan out the steps, create or edit multiple files, and run them when appropriate.\n"
-        "Always respond succinctly.\n"
+            "You are an AI assistant that can perform tasks in the command prompt using Python functions.\n"
+            "Follow these steps for each user request:\n"
+            "1. If the user wants to create a Python file, create it using 'create_python_file', then *always* call "
+            "'execute_python_file' to run it (unless there's a clear reason not to).\n"
+            "2. If the user wants to edit a Python file, use 'edit_python_file', then call 'execute_python_file'.\n"
+            "3. All virtual environments and files must be created within the project folder.\n"
+            "If an error occurs, fix it by editing or re-running as needed.\n"
+            "Do not mention the function names in the user-facing message.\n"
+            "For bigger projects, plan out the steps, create or edit multiple files, and run them when appropriate.\n"
+            "Always respond succinctly.\n"
         )
     }
 
@@ -358,18 +413,25 @@ def main():
             print("Goodbye!")
             break
 
+        # Mark the start time for measuring speed
+        start_time = time.time()
+
         # Append user message
         messages.append({"role": "user", "content": user_input})
+
+        # Log the user input
+        log_event(
+            event_type="user_input",
+            user_input=user_input,
+            time_elapsed=0.0
+        )
 
         # ---------------------------------------------------------------------
         # 1. Retrieve relevant code from knowledge base before each completion
         # ---------------------------------------------------------------------
-        # This query uses the user's entire prompt. 
         relevant_snippets = kb.retrieve_relevant_code(query=user_input, top_k=3)
         if relevant_snippets:
             snippet_text = "\n\n".join(relevant_snippets)
-            # Insert as a system message so the model can draw upon it
-            print("Snippets from knowledge base:\n", snippet_text)
             knowledge_system_msg = {
                 "role": "system",
                 "content": (
@@ -377,18 +439,18 @@ def main():
                     f"{snippet_text}"
                 )
             }
-            # Insert this before the user message (just after last system prompt if any)
-            # We'll place it at the second to last position, so it doesn't override the final user message.
+            # Insert this message so the model can use it
             messages.insert(len(messages) - 1, knowledge_system_msg)
 
         max_iterations = 30
         iteration = 0
 
+        # We will continue until the model produces a non-function call response or we exhaust iterations
         while iteration < max_iterations:
             iteration += 1
 
+            # Make sure we're not exceeding token limit
             messages = TokenUtils.prune_messages(messages, MAX_TOKEN_LIMIT)
-
 
             # Insert system prompt just before the last user or system context
             system_prompt_index = len(messages) - 1
@@ -410,7 +472,9 @@ def main():
 
             if assistant_message.function_call:
                 function_name = assistant_message.function_call.name
-                function_args = json.loads(assistant_message.function_call.arguments)
+                function_args_json = assistant_message.function_call.arguments
+                function_args_str = json.dumps(function_args_json)
+                function_args = json.loads(function_args_json)
 
                 function_map = {
                     "create_project_folder": create_project_folder,
@@ -424,20 +488,44 @@ def main():
                 }
 
                 function_to_call = function_map.get(function_name)
+
                 if function_to_call:
+                    # Attempt to run the function
                     try:
                         output = function_to_call(**function_args)
-                        print(f"Function '{function_name}' executed successfully.")
+                        print(f"[System] Called function: {function_name}")
+                        print(f"[System] Output:\n{output}")
                     except Exception as e:
                         output = f"An error occurred: {str(e)}"
                 else:
                     output = f"Function '{function_name}' is not implemented."
 
-                # ----------------------------------------------------
-                # 2. Auto-update knowledge base if we changed code
-                # ----------------------------------------------------
-                # We'll update the knowledge base if the function modifies Python files 
-                # or the project structure.
+                # Decide success or failure heuristically
+                success_flag = "False"
+                error_msg = ""
+                # Basic heuristic: if 'Error' or 'failed' in output, it's a failure
+                # Otherwise, success.
+                lower_output = output.lower()
+                if "error" in lower_output or "failed" in lower_output or "traceback" in lower_output:
+                    success_flag = "False"
+                    error_msg = output
+                else:
+                    success_flag = "True"
+
+                # Log function call
+                elapsed_time = time.time() - start_time
+                log_event(
+                    event_type="function_call",
+                    user_input=user_input,
+                    function_name=function_name,
+                    function_args=function_args_str,
+                    assistant_response=output,
+                    success=success_flag,
+                    error=error_msg,
+                    time_elapsed=elapsed_time
+                )
+
+                # If we changed or created files, update knowledge base
                 if function_name in [
                     "create_python_file",
                     "edit_python_file",
@@ -448,21 +536,37 @@ def main():
                         print("Updating knowledge base with new or changed files...")
                         kb.update_knowledge_base(project_name)
 
-                # Handle execution errors
-                if 'Execution failed' in output or 'Error' in output:
-                    messages.append({
-                        "role": "assistant",
-                        "content": f"I encountered an error:\n{output}"
-                    })
-                else:
-                    messages.append({
-                        "role": "assistant",
-                        "content": output
-                    })
+                # Add assistant's function response to the conversation
+                messages.append({
+                    "role": "assistant",
+                    "content": output
+                })
+
             else:
-                # No function call, just a message
-                print(f"Assistant: {assistant_message.content}")
-                break  # exit the iteration loop
+                # This is a final textual message from the assistant
+                assistant_text = assistant_message.content
+                print(f"Assistant: {assistant_text}")
+
+                # Log the assistant's final textual response
+                elapsed_time = time.time() - start_time
+                # Determine success if no keywords "error" or "failed"
+                success_flag = "False"
+                error_msg = ""
+                if assistant_text and not any(k in assistant_text.lower() for k in ["error", "failed", "traceback"]):
+                    success_flag = "True"
+
+                log_event(
+                    event_type="assistant_message",
+                    user_input=user_input,
+                    assistant_response=assistant_text,
+                    success=success_flag,
+                    error=error_msg,
+                    time_elapsed=elapsed_time
+                )
+                break  # we've reached a final textual answer for this user input
+
+    # Close the log file when the session ends
+    log_file.close()
 
 if __name__ == "__main__":
     main()

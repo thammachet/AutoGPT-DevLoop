@@ -1,0 +1,86 @@
+2025-04-21 23:02:22,401 INFO: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-04-21 23:02:22,402 INFO: [33mPress CTRL+C to quit[0m
+2025-04-21 23:02:22,412 INFO:  * Restarting with stat
+2025-04-21 23:02:22,681 WARNING:  * Debugger is active!
+2025-04-21 23:02:22,685 INFO:  * Debugger PIN: 532-088-479
+2025-04-21 23:02:45,355 INFO: 127.0.0.1 - - [21/Apr/2025 23:02:45] "GET / HTTP/1.1" 200 -
+2025-04-21 23:02:45,519 INFO: 127.0.0.1 - - [21/Apr/2025 23:02:45] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2025-04-21 23:02:50,138 INFO: Upload: raf360x360075tfafafa_ca443f4786.jpg, time: 0.28s, output: raf360x360075tfafafa_ca443f4786.txt
+2025-04-21 23:02:50,161 INFO: 127.0.0.1 - - [21/Apr/2025 23:02:50] "POST /upload HTTP/1.1" 200 -
+2025-04-21 23:02:52,909 INFO: 127.0.0.1 - - [21/Apr/2025 23:02:52] "GET /download/raf360x360075tfafafa_ca443f4786.txt HTTP/1.1" 200 -
+2025-04-21 23:03:02,878 INFO: 127.0.0.1 - - [21/Apr/2025 23:03:02] "GET / HTTP/1.1" 200 -
+2025-04-21 23:03:06,934 INFO: Upload: images.jpg, time: 0.01s, output: images.txt
+2025-04-21 23:03:06,934 INFO: 127.0.0.1 - - [21/Apr/2025 23:03:06] "POST /upload HTTP/1.1" 200 -
+2025-04-21 23:03:10,434 INFO: 127.0.0.1 - - [21/Apr/2025 23:03:10] "GET /download/images.txt HTTP/1.1" 200 -
+2025-04-21 23:03:23,168 INFO: 127.0.0.1 - - [21/Apr/2025 23:03:23] "GET / HTTP/1.1" 200 -
+2025-04-21 23:03:27,344 INFO: Upload: bgf8f8f8-flat750x075f-pad750x1000f8f8f8.jpg, time: 0.02s, output: bgf8f8f8-flat750x075f-pad750x1000f8f8f8.txt
+2025-04-21 23:03:27,345 INFO: 127.0.0.1 - - [21/Apr/2025 23:03:27] "POST /upload HTTP/1.1" 200 -
+2025-04-21 23:09:07,473 INFO: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-04-21 23:09:07,473 INFO: [33mPress CTRL+C to quit[0m
+2025-04-21 23:09:07,484 INFO:  * Restarting with stat
+2025-04-21 23:09:07,778 WARNING:  * Debugger is active!
+2025-04-21 23:09:07,782 INFO:  * Debugger PIN: 214-361-485
+2025-04-21 23:10:01,298 INFO: 127.0.0.1 - - [21/Apr/2025 23:10:01] "[33mPOST /upload HTTP/1.1[0m" 404 -
+2025-04-21 23:10:03,792 INFO: 127.0.0.1 - - [21/Apr/2025 23:10:03] "GET / HTTP/1.1" 200 -
+2025-04-21 23:10:08,481 INFO: File: images.jpg, Processing time: 0.0010s, Status: Success
+2025-04-21 23:10:08,494 INFO: 127.0.0.1 - - [21/Apr/2025 23:10:08] "POST / HTTP/1.1" 200 -
+2025-04-21 23:10:15,575 INFO: 127.0.0.1 - - [21/Apr/2025 23:10:15] "POST /download HTTP/1.1" 200 -
+2025-04-21 23:10:21,317 INFO: 127.0.0.1 - - [21/Apr/2025 23:10:21] "GET / HTTP/1.1" 200 -
+2025-04-21 23:10:26,546 INFO: File: raf360x360075tfafafa_ca443f4786.jpg, Processing time: 0.0030s, Status: Success
+2025-04-21 23:10:26,546 INFO: 127.0.0.1 - - [21/Apr/2025 23:10:26] "POST / HTTP/1.1" 200 -
+2025-04-21 23:10:29,661 INFO: 127.0.0.1 - - [21/Apr/2025 23:10:29] "POST /download HTTP/1.1" 200 -
+2025-04-21 23:10:32,740 INFO: 127.0.0.1 - - [21/Apr/2025 23:10:32] "GET / HTTP/1.1" 200 -
+2025-04-21 23:10:37,770 INFO: File: bgf8f8f8-flat750x075f-pad750x1000f8f8f8.jpg, Processing time: 0.0070s, Status: Success
+2025-04-21 23:10:37,771 INFO: 127.0.0.1 - - [21/Apr/2025 23:10:37] "POST / HTTP/1.1" 200 -
+2025-04-21 23:10:39,890 INFO: 127.0.0.1 - - [21/Apr/2025 23:10:39] "POST /download HTTP/1.1" 200 -
+2025-04-21 23:26:42,318 INFO:Environment details: {'python_version': '3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]', 'platform': 'Windows-11-10.0.26100-SP0', 'packages': {'MarkupSafe': '3.0.2', 'blinker': '1.9.0', 'click': '8.1.8', 'colorama': '0.4.6', 'flask': '3.1.0', 'itsdangerous': '2.2.0', 'jinja2': '3.1.6', 'joblib': '1.4.2', 'numpy': '2.2.5', 'pip': '25.0.1', 'scikit-learn': '1.6.1', 'scipy': '1.15.2', 'setuptools': '79.0.0', 'threadpoolctl': '3.6.0', 'werkzeug': '3.1.3', 'autocommand': '2.2.2', 'backports.tarfile': '1.2.0', 'importlib-metadata': '8.0.0', 'inflect': '7.3.1', 'jaraco.collections': '5.1.0', 'jaraco.context': '5.3.0', 'jaraco.functools': '4.0.1', 'jaraco.text': '3.12.1', 'more-itertools': '10.3.0', 'packaging': '24.2', 'platformdirs': '4.2.2', 'tomli': '2.0.1', 'typeguard': '4.3.0', 'typing-extensions': '4.12.2', 'wheel': '0.45.1', 'zipp': '3.19.2'}}
+2025-04-21 23:26:42,491 INFO:Model trained on Iris dataset
+2025-04-21 23:26:42,526 INFO:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.245.38:5000
+2025-04-21 23:26:42,526 INFO:[33mPress CTRL+C to quit[0m
+2025-04-21 23:27:35,601 INFO:127.0.0.1 - - [21/Apr/2025 23:27:35] "GET / HTTP/1.1" 200 -
+2025-04-21 23:28:54,843 INFO:User input: [5.1, 3.5, 1.4, 0.2]
+2025-04-21 23:28:54,863 INFO:Prediction: setosa
+2025-04-21 23:28:54,864 INFO:127.0.0.1 - - [21/Apr/2025 23:28:54] "POST /predict HTTP/1.1" 200 -
+2025-04-21 23:29:07,159 INFO:User input: [6.0, 2.2, 4.0, 1.0]
+2025-04-21 23:29:07,167 INFO:Prediction: versicolor
+2025-04-21 23:29:07,168 INFO:127.0.0.1 - - [21/Apr/2025 23:29:07] "POST /predict HTTP/1.1" 200 -
+2025-04-21 23:29:20,865 INFO:User input: [6.3, 3.3, 6.0, 2.5]
+2025-04-21 23:29:20,873 INFO:Prediction: virginica
+2025-04-21 23:29:20,874 INFO:127.0.0.1 - - [21/Apr/2025 23:29:20] "POST /predict HTTP/1.1" 200 -
+2025-04-21 23:36:22,771 INFO Python version: 3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]
+2025-04-21 23:36:22,772 INFO scikit-learn version: 1.6.1
+2025-04-21 23:36:23,134 INFO Model trained successfully.
+2025-04-21 23:36:23,203 INFO Model saved to model.pkl
+2025-04-21 23:36:23,218 INFO Test input: [5.1, 3.5, 1.4, 0.2], Prediction: setosa
+2025-04-21 23:37:51,720 INFO Starting Flask application
+2025-04-21 23:37:51,722 INFO Python version: 3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]
+2025-04-21 23:37:51,722 INFO scikit-learn version: 1.6.1
+2025-04-21 23:38:51,233 INFO Starting Flask application
+2025-04-21 23:38:51,233 INFO Python version: 3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]
+2025-04-21 23:38:51,233 INFO scikit-learn version: 1.6.1
+2025-04-21 23:38:51,235 INFO model.pkl not found, training model...
+2025-04-21 23:38:51,545 INFO Python version: 3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]
+2025-04-21 23:38:51,546 INFO scikit-learn version: 1.6.1
+2025-04-21 23:38:51,720 INFO Model trained successfully.
+2025-04-21 23:38:51,735 INFO Model saved to model.pkl
+2025-04-21 23:38:51,738 INFO Test input: [5.1, 3.5, 1.4, 0.2], Prediction: setosa
+2025-04-21 23:40:48,584 INFO Starting Flask application
+2025-04-21 23:40:48,584 INFO Python version: 3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]
+2025-04-21 23:40:48,584 INFO scikit-learn version: 1.6.1
+2025-04-21 23:40:48,861 INFO [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.245.38:5000
+2025-04-21 23:40:48,861 INFO [33mPress CTRL+C to quit[0m
+2025-04-21 23:41:45,897 INFO 127.0.0.1 - - [21/Apr/2025 23:41:45] "GET / HTTP/1.1" 200 -
+2025-04-21 23:42:17,729 INFO Input: [5.1, 3.5, 1.4, 0.2], Prediction: setosa
+2025-04-21 23:42:17,730 INFO 127.0.0.1 - - [21/Apr/2025 23:42:17] "POST / HTTP/1.1" 200 -
+2025-04-21 23:42:37,061 INFO Input: [6.0, 2.2, 4.0, 1.0], Prediction: versicolor
+2025-04-21 23:42:37,062 INFO 127.0.0.1 - - [21/Apr/2025 23:42:37] "POST / HTTP/1.1" 200 -
+2025-04-21 23:42:58,022 INFO Input: [6.3, 3.3, 6.0, 2.5], Prediction: virginica
+2025-04-21 23:42:58,023 INFO 127.0.0.1 - - [21/Apr/2025 23:42:58] "POST / HTTP/1.1" 200 -

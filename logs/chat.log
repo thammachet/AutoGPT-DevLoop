@@ -1,0 +1,33 @@
+2025-04-22 00:00:53,402 - Xet Storage is enabled for this repo, but the 'hf_xet' package is not installed. Falling back to regular HTTP download. For better performance, install the package with: `pip install huggingface_hub[hf_xet]` or `pip install hf_xet`
+2025-04-22 00:01:21,100 - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.245.38:5000
+2025-04-22 00:01:21,100 - [33mPress CTRL+C to quit[0m
+2025-04-22 00:01:21,118 -  * Restarting with stat
+2025-04-22 00:01:33,323 -  * Debugger is active!
+2025-04-22 00:01:33,340 -  * Debugger PIN: 138-872-014
+2025-04-22 00:01:55,369 - 127.0.0.1 - - [22/Apr/2025 00:01:55] "[35m[1mGET / HTTP/1.1[0m" 500 -
+2025-04-22 00:01:55,677 - 127.0.0.1 - - [22/Apr/2025 00:01:55] "GET /?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+2025-04-22 00:01:55,696 - 127.0.0.1 - - [22/Apr/2025 00:01:55] "GET /?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+2025-04-22 00:01:55,745 - 127.0.0.1 - - [22/Apr/2025 00:01:55] "GET /?__debugger__=yes&cmd=resource&f=console.png&s=CBBzWkxuLVxSs1qFdluV HTTP/1.1" 200 -
+2025-04-22 00:01:55,896 - 127.0.0.1 - - [22/Apr/2025 00:01:55] "GET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+2025-04-22 00:02:11,088 - 127.0.0.1 - - [22/Apr/2025 00:02:11] "[35m[1mGET / HTTP/1.1[0m" 500 -
+2025-04-22 00:02:11,101 - 127.0.0.1 - - [22/Apr/2025 00:02:11] "[36mGET /?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1[0m" 304 -
+2025-04-22 00:02:11,102 - 127.0.0.1 - - [22/Apr/2025 00:02:11] "[36mGET /?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1[0m" 304 -
+2025-04-22 00:02:11,113 - 127.0.0.1 - - [22/Apr/2025 00:02:11] "[36mGET /?__debugger__=yes&cmd=resource&f=console.png&s=CBBzWkxuLVxSs1qFdluV HTTP/1.1[0m" 304 -
+2025-04-22 00:02:11,167 - 127.0.0.1 - - [22/Apr/2025 00:02:11] "[36mGET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1[0m" 304 -
+2025-04-22 00:02:11,293 - 127.0.0.1 - - [22/Apr/2025 00:02:11] "[35m[1mGET / HTTP/1.1[0m" 500 -
+2025-04-22 00:02:11,306 - 127.0.0.1 - - [22/Apr/2025 00:02:11] "[36mGET /?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1[0m" 304 -
+2025-04-22 00:02:11,307 - 127.0.0.1 - - [22/Apr/2025 00:02:11] "[36mGET /?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1[0m" 304 -
+2025-04-22 00:02:11,317 - 127.0.0.1 - - [22/Apr/2025 00:02:11] "[36mGET /?__debugger__=yes&cmd=resource&f=console.png&s=CBBzWkxuLVxSs1qFdluV HTTP/1.1[0m" 304 -
+2025-04-22 00:02:11,369 - 127.0.0.1 - - [22/Apr/2025 00:02:11] "[36mGET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1[0m" 304 -
+2025-04-22 00:02:11,599 - 127.0.0.1 - - [22/Apr/2025 00:02:11] "[35m[1mGET / HTTP/1.1[0m" 500 -
+2025-04-22 00:02:11,609 - 127.0.0.1 - - [22/Apr/2025 00:02:11] "[36mGET /?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1[0m" 304 -
+2025-04-22 00:02:11,609 - 127.0.0.1 - - [22/Apr/2025 00:02:11] "[36mGET /?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1[0m" 304 -
+2025-04-22 00:02:11,622 - 127.0.0.1 - - [22/Apr/2025 00:02:11] "[36mGET /?__debugger__=yes&cmd=resource&f=console.png&s=CBBzWkxuLVxSs1qFdluV HTTP/1.1[0m" 304 -
+2025-04-22 00:02:11,675 - 127.0.0.1 - - [22/Apr/2025 00:02:11] "[36mGET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1[0m" 304 -
+2025-04-22 00:02:21,398 - 127.0.0.1 - - [22/Apr/2025 00:02:21] "[35m[1mGET / HTTP/1.1[0m" 500 -
+2025-04-22 00:02:21,411 - 127.0.0.1 - - [22/Apr/2025 00:02:21] "[36mGET /?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1[0m" 304 -
+2025-04-22 00:02:21,412 - 127.0.0.1 - - [22/Apr/2025 00:02:21] "[36mGET /?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1[0m" 304 -
+2025-04-22 00:02:21,426 - 127.0.0.1 - - [22/Apr/2025 00:02:21] "[36mGET /?__debugger__=yes&cmd=resource&f=console.png&s=CBBzWkxuLVxSs1qFdluV HTTP/1.1[0m" 304 -

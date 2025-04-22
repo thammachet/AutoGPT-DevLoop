@@ -1,0 +1,28 @@
+2025-04-21 23:15:07,878 INFO: [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-04-21 23:15:07,878 INFO: [33mPress CTRL+C to quit[0m
+2025-04-21 23:15:07,889 INFO:  * Restarting with stat
+2025-04-21 23:15:08,160 WARNING:  * Debugger is active!
+2025-04-21 23:15:08,164 INFO:  * Debugger PIN: 214-361-485
+2025-04-21 23:15:38,073 INFO: 127.0.0.1 - - [21/Apr/2025 23:15:38] "[32mPOST / HTTP/1.1[0m" 302 -
+2025-04-21 23:15:38,094 INFO: 127.0.0.1 - - [21/Apr/2025 23:15:38] "GET / HTTP/1.1" 200 -
+2025-04-21 23:15:42,927 INFO: Uploaded file saved as uploads\f372d0fa-a534-4d36-a53c-5f469fcdfd37.jpg
+2025-04-21 23:15:43,173 INFO: Conversion done in 0.25s
+2025-04-21 23:15:43,174 INFO: ASCII art saved to ascii_files\f372d0fa-a534-4d36-a53c-5f469fcdfd37.jpg.txt
+2025-04-21 23:15:43,196 INFO: 127.0.0.1 - - [21/Apr/2025 23:15:43] "POST / HTTP/1.1" 200 -
+2025-04-21 23:15:45,587 INFO: 127.0.0.1 - - [21/Apr/2025 23:15:45] "[35m[1mGET /download/f372d0fa-a534-4d36-a53c-5f469fcdfd37.jpg.txt HTTP/1.1[0m" 500 -
+2025-04-21 23:15:45,838 INFO: 127.0.0.1 - - [21/Apr/2025 23:15:45] "GET /download/f372d0fa-a534-4d36-a53c-5f469fcdfd37.jpg.txt?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+2025-04-21 23:15:45,872 INFO: 127.0.0.1 - - [21/Apr/2025 23:15:45] "GET /download/f372d0fa-a534-4d36-a53c-5f469fcdfd37.jpg.txt?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+2025-04-21 23:15:45,908 INFO: 127.0.0.1 - - [21/Apr/2025 23:15:45] "GET /download/f372d0fa-a534-4d36-a53c-5f469fcdfd37.jpg.txt?__debugger__=yes&cmd=resource&f=console.png&s=H94JZwiVndmpBANqRPlx HTTP/1.1" 200 -
+2025-04-21 23:15:45,937 INFO: 127.0.0.1 - - [21/Apr/2025 23:15:45] "GET /download/f372d0fa-a534-4d36-a53c-5f469fcdfd37.jpg.txt?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+2025-04-21 23:50:01,509 Environment details: {"python_version": "3.12.10", "platform": "Windows-11-10.0.26100-SP0", "packages": {"markupsafe": "3.0.2", "blinker": "1.9.0", "click": "8.1.8", "colorama": "0.4.6", "flask": "3.1.0", "itsdangerous": "2.2.0", "jinja2": "3.1.6", "joblib": "1.4.2", "numpy": "2.2.5", "pip": "25.0.1", "scikit-learn": "1.6.1", "scipy": "1.15.2", "setuptools": "79.0.0", "threadpoolctl": "3.6.0", "werkzeug": "3.1.3", "autocommand": "2.2.2", "backports.tarfile": "1.2.0", "importlib-metadata": "8.0.0", "inflect": "7.3.1", "jaraco.collections": "5.1.0", "jaraco.context": "5.3.0", "jaraco.functools": "4.0.1", "jaraco.text": "3.12.1", "more-itertools": "10.3.0", "packaging": "24.2", "platformdirs": "4.2.2", "tomli": "2.0.1", "typeguard": "4.3.0", "typing-extensions": "4.12.2", "wheel": "0.45.1", "zipp": "3.19.2"}}
+2025-04-21 23:50:02,014 [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on http://127.0.0.1:5000
+2025-04-21 23:50:02,015 [33mPress CTRL+C to quit[0m
+2025-04-21 23:50:02,041  * Restarting with stat
+2025-04-21 23:50:04,216 Environment details: {"python_version": "3.12.10", "platform": "Windows-11-10.0.26100-SP0", "packages": {"markupsafe": "3.0.2", "blinker": "1.9.0", "click": "8.1.8", "colorama": "0.4.6", "flask": "3.1.0", "itsdangerous": "2.2.0", "jinja2": "3.1.6", "joblib": "1.4.2", "numpy": "2.2.5", "pip": "25.0.1", "scikit-learn": "1.6.1", "scipy": "1.15.2", "setuptools": "79.0.0", "threadpoolctl": "3.6.0", "werkzeug": "3.1.3", "autocommand": "2.2.2", "backports.tarfile": "1.2.0", "importlib-metadata": "8.0.0", "inflect": "7.3.1", "jaraco.collections": "5.1.0", "jaraco.context": "5.3.0", "jaraco.functools": "4.0.1", "jaraco.text": "3.12.1", "more-itertools": "10.3.0", "packaging": "24.2", "platformdirs": "4.2.2", "tomli": "2.0.1", "typeguard": "4.3.0", "typing-extensions": "4.12.2", "wheel": "0.45.1", "zipp": "3.19.2"}}
+2025-04-21 23:50:04,374  * Debugger is active!
+2025-04-21 23:50:04,382  * Debugger PIN: 130-620-027
+2025-04-21 23:50:04,485 127.0.0.1 - - [21/Apr/2025 23:50:04] "GET / HTTP/1.1" 200 -
+2025-04-21 23:50:20,292 Prediction: {"timestamp": "2025-04-21T23:50:20.292108", "input": [5.1, 3.5, 1.4, 0.2], "prediction": "setosa"}
+2025-04-21 23:50:20,294 127.0.0.1 - - [21/Apr/2025 23:50:20] "POST /predict HTTP/1.1" 200 -
