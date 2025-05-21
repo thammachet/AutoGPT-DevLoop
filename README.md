@@ -1,24 +1,25 @@
+# AutoGPT Development Loop
 
-# Python OpenAI Automation Script
-
-This Python script enables autonomous management of Python development tasks, such as creating and editing files, managing virtual environments, installing packages, and executing Python scripts through natural-language instructions processed by OpenAI's GPT models.
+This repository contains an experimental automation tool for driving small Python projects with OpenAI's function-calling API.  The entry point `main.py` exposes a simple command-line interface that can create project folders, manage virtual environments, install packages and execute Python files based on natural‑language instructions.
 
 ---
 
 ## 🚀 Features
 
-- **Autonomous Python Development**
-  - Create or edit Python files automatically.
-  - Create virtual environments (`venv`) with ease.
-  - Install Python packages effortlessly.
-  - Execute Python scripts seamlessly.
+- **Automated Project Management**
+  - Create or edit Python files on demand.
+  - Generate and activate virtual environments inside each project folder.
+  - Install required libraries before running your code.
+  - Execute scripts and capture the output automatically.
 
 - **Conversational Interface**
-  - Control your project using plain English instructions.
-  - Integrated with OpenAI's GPT API to interpret your commands intelligently.
+  - Control everything in plain English; the assistant chooses which functions to call.
+
+- **Knowledge Base Updates**
+  - Whenever files are created or edited, summaries are stored in a Chroma-based knowledge base.
 
 - **Security Best Practices**
-  - OpenAI API key stored securely in a separate `api_key.txt` file (excluded from Git).
+  - The OpenAI API key is stored in `api_key.txt`, which is excluded from version control.
 
 ---
 
@@ -31,7 +32,7 @@ git clone https://github.com/yourusername/your-repo.git
 cd your-repo
 ```
 
-### Step 2: Set up Virtual Environment and Dependencies
+### Step 2: Set up a Virtual Environment
 
 ```bash
 python -m venv env
@@ -52,7 +53,7 @@ source env/bin/activate
 ### Step 3: Install required dependencies
 
 ```bash
-pip install openai tiktoken
+pip install -r requirements.txt
 ```
 
 ### Step 4: Add Your OpenAI API Key
@@ -72,16 +73,18 @@ sk-your_openai_api_key_here
 Start the automation script:
 
 ```bash
-python your_script.py
+python main.py
 ```
 
-Enter your commands in plain language:
+After launching you will be asked for a difficulty level, task number and trial number.  These values are used to name the resulting log file.
+
+Once the prompt appears you can interact in plain language, for example:
 
 ```text
-You: Create a new Python file named hello.py that prints "Hello, World!" in the "MyProject" folder.
+You: Create a new Python file named hello.py that prints "Hello, World!" in a folder called MyProject.
 ```
 
-GPT interprets and carries out your instructions automatically.
+The assistant will choose the appropriate functions to create files, run them and record the conversation in a CSV log.
 
 ---
 
@@ -99,7 +102,11 @@ project-root/
 │
 ├── env/                # Virtual environment (ignored)
 ├── api_key.txt         # OpenAI API key (ignored)
-├── your_script.py      # Main automation script
+├── main.py             # CLI entry point
+├── project_functions.py
+├── task_config.py
+├── Utils/              # Helper modules
+├── Results/            # Experiment logs
 ├── .gitignore          # Git ignore configuration
 └── README.md           # This file
 ```
