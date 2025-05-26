@@ -1,6 +1,5 @@
 import os
 import subprocess
-import json
 
 from Utils import Logger as ExperimentLogger
 from knowledge_base import update_knowledge_base
